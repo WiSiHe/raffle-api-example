@@ -1,4 +1,4 @@
-const { fontFamily } = require("tailwindcss/defaultTheme");
+const defaultTheme = require("tailwindcss/defaultTheme");
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -13,7 +13,17 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['"Source Sans 3"', ...defaultTheme.fontFamily.sans],
+        serif: ['"Source Serif 4"', ...defaultTheme.fontFamily.serif],
+      },
       colors: {
+        "nbim-midnight": "hsl(var(--nbim-midnight) / <alpha-value>)",
+        "nbim-sea": "hsl(var(--nbim-sea) / <alpha-value>)",
+        "nbim-page": "hsl(var(--nbim-page) / <alpha-value>)",
+        "nbim-border-subdued": "hsl(var(--nbim-midnight) / 0.12)",
+        "nbim-border-default": "hsl(var(--nbim-midnight) / 0.24)",
+        "nbim-on-light-hover": "hsl(var(--nbim-midnight) / 0.05)",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

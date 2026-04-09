@@ -17,10 +17,21 @@ if (!uid) {
   );
 }
 
+async function parseJson<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      text.trim() ||
+        `Request failed (${response.status} ${response.statusText})`
+    );
+  }
+  return response.json() as Promise<T>;
+}
+
 export const fetchTopQuestions = async () => {
   const url = urlBuilder(routes.topQuestionsURL, { uid });
   const response = await fetch(url);
-  const data = (await response.json()) as TopQuestionsResponse;
+  const data = await parseJson<TopQuestionsResponse>(response);
   return data.questions;
 };
 
@@ -31,7 +42,7 @@ export const fetchSuggestions = async (query: string) => {
     limit: "5",
   });
   const response = await fetch(url);
-  const data = (await response.json()) as SuggestionsResponse;
+  const data = await parseJson<SuggestionsResponse>(response);
   return data.suggestions;
 };
 
@@ -44,13 +55,12 @@ export const fetchSearchResults = async (query: string) => {
     "session-id": sessionId,
   });
   const response = await fetch(url);
-  const data = (await response.json()) as SearchResultsResponse;
+  const data = await parseJson<SearchResultsResponse>(response);
   return data.results;
 };
 
 export const fetchSummary = async (query: string) => {
   const url = urlBuilder(routes.summaryURL, { uid, query });
   const response = await fetch(url);
-  const data = await response.json();
-  return data as SummaryResponse;
+  return parseJson<SummaryResponse>(response);
 };
