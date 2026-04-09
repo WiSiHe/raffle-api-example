@@ -5,10 +5,10 @@ import {
   TopQuestionsResponse,
 } from "../types";
 import { routes } from "./routes";
+import { getOrCreateSessionId } from "./sessionId";
 import { urlBuilder } from "./utils";
 
 const uid = import.meta.env.VITE_RAFFLE_UI_UID;
-const sessionId = "my-session-id"; // Replace this with the current session id
 
 // Ensure the environment variable is set
 if (!uid) {
@@ -52,7 +52,7 @@ export const fetchSearchResults = async (query: string) => {
     query,
     preview: "true",
     device: "desktop",
-    "session-id": sessionId,
+    "session-id": getOrCreateSessionId(),
   });
   const response = await fetch(url);
   const data = await parseJson<SearchResultsResponse>(response);
@@ -64,3 +64,33 @@ export const fetchSummary = async (query: string) => {
   const response = await fetch(url);
   return parseJson<SummaryResponse>(response);
 };
+
+/**
+ * Notify Raffle when a user opens a search result (click-through / relevance).
+ * @see https://docs.raffle.ai/api/guides/react/search-results/
+ */
+export async function sendFeedback(feedbackData: string): Promise<void> {
+  if (!feedbackData.trim()) return;
+
+  try {
+    const response = await fetch(routes.feedbackURL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "click",
+        feedback_data: feedbackData,
+      }),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        text.trim() ||
+          `Feedback failed (${response.status} ${response.statusText})`
+      );
+    }
+  } catch (e) {
+    if (import.meta.env.DEV) {
+      console.warn("[Raffle] sendFeedback:", e);
+    }
+  }
+}

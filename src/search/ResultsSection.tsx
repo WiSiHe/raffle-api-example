@@ -1,4 +1,5 @@
 import type { SearchResult } from '../types';
+import { sendFeedback } from '../api/api';
 import { errorMessage } from './searchUtils';
 
 export function ResultsSection({
@@ -39,6 +40,9 @@ export function ResultsSection({
             target="_blank"
             rel="noopener noreferrer"
             className="group block rounded-lg border border-nbim-border-subdued bg-card p-4 text-left shadow-sm transition-colors hover:border-nbim-sea/50 hover:bg-nbim-on-light-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nbim-sea focus-visible:ring-offset-2 sm:p-5"
+            onClick={() => {
+              void sendFeedback(result.feedback_data);
+            }}
           >
             <span className="block text-base font-semibold text-nbim-sea group-hover:underline">
               {result.title}

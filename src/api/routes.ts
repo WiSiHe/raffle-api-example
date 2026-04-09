@@ -5,4 +5,5 @@ export const routes = {
   suggestionsURL: `${baseURL}/autocomplete`,
   searchURL: `${baseURL}/search`,
   summaryURL: `${baseURL}/summary`,
+  feedbackURL: `${baseURL}/feedback`,
 };
