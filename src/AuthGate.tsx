@@ -25,7 +25,7 @@ export function AuthGate({ children }: Readonly<{ children: ReactNode }>) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  if (!expectedPassword?.trim()) {
+  if (import.meta.env.DEV || !expectedPassword?.trim()) {
     return children;
   }
 

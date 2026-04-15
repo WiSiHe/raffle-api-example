@@ -65,6 +65,100 @@ export const fetchSummary = async (query: string) => {
   return parseJson<SummaryResponse>(response);
 };
 
+export const streamRaffleSummary = async (
+  query: string,
+  onChunk: (chunk: string) => void
+): Promise<SummaryResponse> => {
+  const url = urlBuilder(routes.summaryURL, { uid, query, stream: true as any });
+  
+  try {
+    const response = await fetch(url);
+
+    // Some environments might not support stream=true and return 400
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (response.status === 400 || errorText.includes("stream")) {
+        console.warn("[Raffle] API does not support streaming, falling back to standard fetch.");
+        return fetchSummary(query);
+      }
+      throw new Error(errorText.trim() || `Request failed (${response.status})`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder("utf-8");
+
+    if (!reader) {
+      throw new Error("Response body is not readable");
+    }
+
+    let fullSummary = "";
+    let finalResponse: SummaryResponse | null = null;
+    let buffer = "";
+
+    const processLine = (line: string) => {
+      const trimmedLine = line.trim();
+      if (!trimmedLine || trimmedLine === "data: [DONE]") return;
+
+      if (trimmedLine.startsWith("data:")) {
+        try {
+          const payload = trimmedLine.replace(/^data:\s*/, "").trim();
+          const data = JSON.parse(payload);
+          
+          if (data.summary) {
+            const delta = data.summary.slice(fullSummary.length);
+            if (delta) {
+              fullSummary = data.summary;
+              onChunk(delta);
+            }
+          }
+          
+          if (data.status && data.references) {
+            finalResponse = data;
+          }
+        } catch (e) {
+          if (trimmedLine.includes("{")) {
+            console.warn("[Raffle] Stream parse error:", trimmedLine, e);
+          }
+        }
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (value) {
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          processLine(line);
+        }
+      }
+
+      if (done) {
+        // Final flush
+        buffer += decoder.decode();
+        if (buffer) {
+          const lines = buffer.split("\n");
+          for (const line of lines) {
+            processLine(line);
+          }
+        }
+        break;
+      }
+    }
+
+    if (!finalResponse) {
+      return fetchSummary(query);
+    }
+
+    return finalResponse;
+  } catch (e) {
+    console.error("[Raffle] Streaming error, falling back to static fetch:", e);
+    return fetchSummary(query);
+  }
+};
+
 /**
  * Notify Raffle when a user opens a search result (click-through / relevance).
  * @see https://docs.raffle.ai/api/guides/react/search-results/

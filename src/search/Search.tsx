@@ -18,7 +18,8 @@ export function Search() {
     suggestions,
     topQuestions,
     results,
-    summary,
+      summary,
+    duration,
     isLoadingResults,
     isSearchError,
     searchError,
@@ -55,18 +56,25 @@ export function Search() {
           {hasSubmittedSearch ? (
             <section
               aria-busy={isLoadingSummary}
-              className="rounded-lg border shadow-sm border-nbim-border-subdued bg-card text-card-foreground"
+              className="rounded-lg border shadow-sm border-nbim-border-subdued bg-card text-card-foreground overflow-hidden"
             >
-              <div className="flex gap-3 justify-between items-center px-5 py-4 border-b border-nbim-border-subdued sm:px-6">
+              <div className="flex gap-3 justify-between items-center px-5 py-4 border-b border-nbim-border-subdued bg-white sm:px-6">
                 <h2 className="text-lg font-semibold text-nbim-midnight">
                   Summary
                 </h2>
-                {isLoadingSummary ? (
-                  <Loader2
-                    className="w-6 h-6 animate-spin shrink-0 text-nbim-sea"
-                    aria-hidden
-                  />
-                ) : null}
+                <div className="flex items-center gap-4">
+                  {duration !== null && (
+                    <div className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded border">
+                      Latency: {duration}s
+                    </div>
+                  )}
+                  {isLoadingSummary ? (
+                    <Loader2
+                      className="w-5 h-5 animate-spin shrink-0 text-nbim-sea"
+                      aria-hidden
+                    />
+                  ) : null}
+                </div>
               </div>
               <div className="px-5 py-5 sm:px-6">
                 <SummarySection

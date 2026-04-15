@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { NavLink } from 'react-router-dom';
+import { cn } from '../lib/utils';
 
 export function NbimPageChrome({
   children,
@@ -6,16 +8,43 @@ export function NbimPageChrome({
   return (
     <div className="flex flex-col min-h-screen font-sans antialiased bg-nbim-page text-foreground">
       <header className="text-white border-b border-nbim-border-subdued bg-nbim-midnight">
-        <div className="flex gap-3 items-center px-4 py-3 sm:px-6 lg:px-8">
-          <div
-            className="flex justify-center items-center w-9 h-9 text-xs font-bold tracking-tighter rounded-sm shrink-0 bg-white/10"
-            aria-hidden
-          >
-            NB
+        <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 shrink-0">
+            <div
+              className="flex justify-center items-center w-9 h-9 text-xs font-bold tracking-tighter rounded-sm shrink-0 bg-white/10"
+              aria-hidden
+            >
+              NB
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold">Raffle Search API</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="">Raffle Search API</p>
-          </div>
+          
+          <nav className="flex gap-4 mt-1 sm:mt-0 sm:ml-8">
+            <NavLink
+              to="/"
+              className={({ isActive }) =>
+                cn(
+                  "text-sm font-medium transition-colors hover:text-nbim-sea",
+                  isActive ? "text-nbim-sea" : "text-white/70"
+                )
+              }
+            >
+              Standard
+            </NavLink>
+            <NavLink
+              to="/orchestrated"
+              className={({ isActive }) =>
+                cn(
+                  "text-sm font-medium transition-colors hover:text-nbim-sea",
+                  isActive ? "text-nbim-sea" : "text-white/70"
+                )
+              }
+            >
+              Orchestrated
+            </NavLink>
+          </nav>
         </div>
       </header>
       <main className="flex flex-col flex-1">{children}</main>
@@ -28,3 +57,4 @@ export function NbimPageChrome({
     </div>
   );
 }
+
