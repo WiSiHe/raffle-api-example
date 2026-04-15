@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, Search as SearchIcon, Sparkles, Loader2, CheckCircle2, ChevronRight, Database, ShieldAlert, MessageSquare, Terminal, Clock, DollarSign, Zap, ExternalLink, FileText, Info, Code } from 'lucide-react';
+import { Brain, Search as SearchIcon, Sparkles, Loader2, CheckCircle2, ChevronRight, Database, ShieldAlert, MessageSquare, Terminal, Clock, Zap, ExternalLink, FileText, Info, Code } from 'lucide-react';
 import { SearchForm } from './SearchForm';
 import { SummarySection } from './SummarySection';
 import { ResultsSection } from './ResultsSection';
@@ -105,7 +105,6 @@ export function OrchestratedSearch() {
     raffleResults,
     duration,
     timings,
-    totalCost,
     handleSearch,
     clearQuery,
     runSuggestion,

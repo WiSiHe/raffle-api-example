@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { orchestrateQuery, OrchestrationResult, SearchStrategy, ORCHESTRATOR_SYSTEM_PROMPT } from '../api/orchestrator';
-import { fetchSearchResults, fetchSummary, fetchSuggestions, streamRaffleSummary } from '../api/api';
+import { fetchSearchResults, fetchSuggestions, streamRaffleSummary } from '../api/api';
 import { streamOpenAICompletion } from '../api/openai';
 
 export type OrchestrationStep = 'idle' | 'orchestrating' | 'executing' | 'completed' | 'error';
@@ -48,7 +48,7 @@ export function useOrchestratedSearch() {
         try {
           const raffleSugg = await fetchSuggestions(query);
           // Merge and deduplicate (limit to 6 total)
-          const allSuggestions = Array.from(new Set([...enrichedSuggestions, ...raffleSugg]));
+          const allSuggestions = Array.from(new Set([...enrichedSuggestions, ...raffleSugg.map(s => s.suggestion)]));
           enrichedSuggestions = allSuggestions.slice(0, 6);
         } catch (e) {
           console.warn('[Raffle] Failed to fetch enriched suggestions:', e);

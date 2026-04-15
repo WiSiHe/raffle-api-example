@@ -4,7 +4,6 @@ import { useDebounce } from '@uidotdev/usehooks';
 import {
   fetchSearchResults,
   fetchSuggestions,
-  fetchSummary,
   fetchTopQuestions,
   streamRaffleSummary,
 } from '../api/api';
@@ -88,7 +87,7 @@ export function useSearchPage() {
       });
 
       // Wait for both to finish for the total duration
-      const [finalResults, finalSummary] = await Promise.all([
+      const [, finalSummary] = await Promise.all([
         resultsPromise,
         summaryPromise
       ]);

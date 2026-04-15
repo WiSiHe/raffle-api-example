@@ -82,7 +82,7 @@ export function Search() {
                   isSummaryError={isSummaryError}
                   summaryError={summaryError}
                   hasSubmittedSearch={hasSubmittedSearch}
-                  summary={summary}
+                  summary={summary ?? undefined}
                 />
               </div>
             </section>
