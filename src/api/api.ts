@@ -50,7 +50,7 @@ export const fetchSearchResults = async (query: string) => {
   const url = urlBuilder(routes.searchURL, {
     uid,
     query,
-    preview: "true",
+    preview: "false",
     device: "desktop",
     "session-id": getOrCreateSessionId(),
   });
@@ -69,7 +69,7 @@ export const streamRaffleSummary = async (
   query: string,
   onChunk: (chunk: string) => void
 ): Promise<SummaryResponse> => {
-  const url = urlBuilder(routes.summaryURL, { uid, query, stream: true as any });
+  const url = urlBuilder(routes.summaryURL, { uid, query, stream: "true" });
   
   try {
     const response = await fetch(url);

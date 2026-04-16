@@ -5,8 +5,8 @@ import {
   fetchSearchResults,
   fetchSuggestions,
   fetchTopQuestions,
-  streamRaffleSummary,
 } from '../api/api';
+import { streamOpenAICompletion } from '../api/openai';
 import { SummaryResponse } from '../types';
 
 export function useSearchPage() {
@@ -56,6 +56,8 @@ export function useSearchPage() {
     mutationFn: fetchSearchResults,
   });
 
+
+
   const handleSearch = async (searchQuery: string = query) => {
     const trimmedQuery = searchQuery.trim();
     if (!trimmedQuery) return;
@@ -68,15 +70,31 @@ export function useSearchPage() {
     setHasSubmittedSearch(true);
     
     try {
-      const resultsPromise = handleFetchResults(trimmedQuery);
+      // 1. Fetch search results first (Required for synthesis)
+      const searchResults = await handleFetchResults(trimmedQuery);
       
-      const summaryPromise = streamRaffleSummary(trimmedQuery, (chunk) => {
+      // 2. Prepare context for OpenAI
+      const context = searchResults.map((r, i) => `[${i+1}] ${r.title}: ${r.content}`).join('\n\n');
+      
+      const messages = [
+        { 
+          role: "system", 
+          content: "You are an institutional investment analyst at NBIM. Synthesize a concise, objective summary based ONLY on the provided documentation snippets. Use [n] for citations where n is the result index. Focus on fund policies, holdings, and management mandates. If the information is not in the snippets, say you don't have enough documentation on that topic."
+        },
+        { 
+          role: "user", 
+          content: `Question: ${trimmedQuery}\n\nDocumentation:\n${context}`
+        }
+      ];
+
+      // 3. Stream OpenAI completion
+      await streamOpenAICompletion(messages, (chunk) => {
         setSummary((prev) => {
           if (!prev) {
             return {
               status: "success",
               summary: chunk,
-              references: [],
+              references: searchResults.slice(0, 3).map(r => ({ title: r.title, url: r.url })),
             };
           }
           return {
@@ -85,15 +103,7 @@ export function useSearchPage() {
           };
         });
       });
-
-      // Wait for both to finish for the total duration
-      const [, finalSummary] = await Promise.all([
-        resultsPromise,
-        summaryPromise
-      ]);
       
-      // Update with final summary (includes references)
-      setSummary(finalSummary);
       setIsLoadingSummary(false);
       
       const endTime = performance.now();

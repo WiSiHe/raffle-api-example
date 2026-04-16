@@ -21,7 +21,7 @@ export function NbimPageChrome({
             </div>
           </div>
           
-          <nav className="flex gap-4 mt-1 sm:mt-0 sm:ml-8">
+          <nav className="flex flex-wrap gap-4 mt-1 sm:mt-0 sm:ml-8">
             <NavLink
               to="/"
               className={({ isActive }) =>
@@ -42,7 +42,18 @@ export function NbimPageChrome({
                 )
               }
             >
-              Orchestrated
+              Orchestrator
+            </NavLink>
+            <NavLink
+              to="/hybrid"
+              className={({ isActive }) =>
+                cn(
+                  "text-sm font-medium transition-colors hover:text-nbim-sea",
+                  isActive ? "text-nbim-sea" : "text-white/70"
+                )
+              }
+            >
+              Hybrid
             </NavLink>
           </nav>
         </div>

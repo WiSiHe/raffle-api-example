@@ -7,6 +7,9 @@ type SearchFormProps = Readonly<{
   onQueryChange: (value: string) => void;
   onSubmitSearch: () => void;
   onClear: () => void;
+  mode?: string;
+  onModeChange?: (mode: string) => void;
+  showModeSwitcher?: boolean;
 }>;
 
 export function SearchForm({
@@ -14,9 +17,35 @@ export function SearchForm({
   onQueryChange,
   onSubmitSearch,
   onClear,
+  mode,
+  onModeChange,
+  showModeSwitcher = true,
 }: SearchFormProps) {
   return (
-    <div className="rounded-xl border border-nbim-border-subdued bg-card p-4 shadow-sm sm:p-5">
+    <div className="rounded-xl border border-nbim-border-subdued bg-card p-4 shadow-sm sm:p-5 space-y-4">
+      {showModeSwitcher && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {[
+            { id: 'SMART_ROUTING', label: 'Smart routing', icon: '🧠' },
+            { id: 'HYBRID_OPTIMIZER', label: 'Hybrid search', icon: '💎' },
+          ].map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => onModeChange?.(m.id)}
+              className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                mode === m.id
+                  ? 'bg-nbim-midnight text-white border-nbim-midnight shadow-md'
+                  : 'bg-white text-nbim-midnight border-nbim-border-default hover:border-nbim-sea'
+              }`}
+            >
+              <span className="mr-1.5">{m.icon}</span>
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <form
         className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-3"
         onSubmit={(e) => {
@@ -27,24 +56,17 @@ export function SearchForm({
         aria-label="Search the knowledge base"
       >
         <div className="min-w-0 flex-1 space-y-1.5">
-          <label
-            htmlFor="search-query"
-            className="text-sm font-medium text-nbim-midnight"
-          >
-            Search
-          </label>
           <div className="relative">
-            {/* type="text" avoids duplicate clear controls from native search UI */}
             <Input
               id="search-query"
               type="text"
               inputMode="search"
               enterKeyHint="search"
               autoComplete="off"
-              className="border-nbim-border-default bg-background pr-10 shadow-sm focus-visible:ring-nbim-sea"
+              className="h-12 border-nbim-border-default bg-background pr-10 shadow-sm focus-visible:ring-nbim-sea text-base"
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Type your question…"
+              placeholder="What would you like to know about NBIM?"
               aria-describedby="search-hint"
             />
             {query.length > 0 ? (
@@ -62,14 +84,18 @@ export function SearchForm({
         <Button
           type="submit"
           disabled={query.trim().length === 0}
-          className="w-full shrink-0 bg-nbim-midnight text-white hover:bg-nbim-midnight/90 sm:w-auto sm:min-w-[7rem]"
+          className="h-12 px-8 bg-nbim-midnight text-white hover:bg-nbim-midnight/90 sm:w-auto"
         >
-          Search
+          Execute
         </Button>
       </form>
-      <p id="search-hint" className="mt-3 text-xs text-muted-foreground">
-        Press Enter or Search to load a summary and matching pages.
-      </p>
+      {mode && (
+        <p id="search-hint" className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-2">
+          <span className="w-1 h-1 rounded-full bg-nbim-sea" />
+          {mode === 'SMART_ROUTING' && 'AI will decide the best engine for your request'}
+          {mode === 'HYBRID_OPTIMIZER' && 'Exhaustive parallel search across all engines with analytical synthesis'}
+        </p>
+      )}
     </div>
   );
 }

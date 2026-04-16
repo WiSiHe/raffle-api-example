@@ -1,4 +1,5 @@
 import { Loader2 } from 'lucide-react';
+import { DataFlowDiagram } from '../components/DataFlowDiagram';
 import { SearchForm } from './SearchForm';
 import { SuggestionsPanel } from './SuggestionsPanel';
 import { SummarySection } from './SummarySection';
@@ -48,6 +49,7 @@ export function Search() {
         onQueryChange={onQueryChange}
         onSubmitSearch={() => handleSearch()}
         onClear={clearQuery}
+        showModeSwitcher={false}
       />
 
       {/* Summary (main) + suggestions (sidebar on large screens) */}
@@ -125,7 +127,7 @@ export function Search() {
           ) : null}
         </div>
 
-        {hasSubmittedSearch ? (
+        {hasSubmittedSearch && (
           <ResultsSection
             isSearchError={isSearchError}
             searchError={searchError}
@@ -133,11 +135,15 @@ export function Search() {
             isLoadingResults={isLoadingResults}
             results={results}
           />
-        ) : (
+        )}
+        
+        {!hasSubmittedSearch && (
           <p className="text-sm text-muted-foreground">
             Matching pages from the index will be listed here after you search.
           </p>
         )}
+
+        <DataFlowDiagram mode="STANDARD" className="mt-8" />
       </section>
     </div>
   );

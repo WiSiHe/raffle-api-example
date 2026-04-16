@@ -1,17 +1,8 @@
-const STORAGE_KEY = "raffle-session-id";
+const HARDCODED_SESSION_ID = "nbim-institutional-session-2024-stable";
 
 /**
- * Stable id for this browser tab session (per Raffle search / insights grouping).
- * Stored in sessionStorage so it survives refreshes but not new tabs.
+ * Hardcoded stable session id for the Intelligence Hub comparisons.
  */
 export function getOrCreateSessionId(): string {
-  if (typeof sessionStorage === "undefined") {
-    return crypto.randomUUID();
-  }
-  let id = sessionStorage.getItem(STORAGE_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    sessionStorage.setItem(STORAGE_KEY, id);
-  }
-  return id;
+  return HARDCODED_SESSION_ID;
 }

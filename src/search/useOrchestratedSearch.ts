@@ -1,14 +1,14 @@
 import { useState, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { orchestrateQuery, OrchestrationResult, SearchStrategy, ORCHESTRATOR_SYSTEM_PROMPT } from '../api/orchestrator';
-import { fetchSearchResults, fetchSuggestions, streamRaffleSummary } from '../api/api';
+import { orchestrateQuery, OrchestrationResult, SearchStrategy, SearchMode, ORCHESTRATOR_SYSTEM_PROMPT, simulateDatabaseTask } from '../api/orchestrator';
+import { fetchSearchResults, streamRaffleSummary, fetchTopQuestions } from '../api/api';
 import { streamOpenAICompletion } from '../api/openai';
 
 export type OrchestrationStep = 'idle' | 'orchestrating' | 'executing' | 'completed' | 'error';
 
 export interface DatabaseResult {
   sql: string;
-  data: any[];
+  data: Record<string, unknown>[];
   sourceUrl?: string;
   tableId?: string;
 }
@@ -20,8 +20,27 @@ export interface Timings {
   ai?: number;
 }
 
-export function useOrchestratedSearch() {
+const COST_MODEL = {
+  ORCHESTRATOR: 0.0002, // 20 micro-cents per routing decision
+  RAFFLE: 0.10,         // Enterprise scaled price approximation based on 9.7 DKK / convo tier
+  DATABASE: 0.0001,     // 10 micro-cents for SQL simulation
+  AI_SYNTHESIS: 0.0005, // 50 micro-cents for summary generation
+  AI_MERGE: 0.0008,     // 80 micro-cents for complex hybrid merging
+};
+
+async function fetchDatabaseResults(query: string): Promise<DatabaseResult> {
+  // Use OpenAI to simulate the database response for institutional stability
+  const result = await simulateDatabaseTask(query);
+  
+  // Add synthetic institutional latency (1.2s - 2.5s)
+  await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 1300));
+  
+  return result;
+}
+
+export function useOrchestratedSearch(initialMode: SearchMode = 'SMART_ROUTING') {
   const [query, setQuery] = useState('');
+  const [mode, setMode] = useState<SearchMode>(initialMode);
   const [step, setStep] = useState<OrchestrationStep>('idle');
   const [orchestration, setOrchestration] = useState<OrchestrationResult | null>(null);
   const [openAIResult, setOpenAIResult] = useState<string>('');
@@ -29,47 +48,48 @@ export function useOrchestratedSearch() {
   const [duration, setDuration] = useState<number | null>(null);
   const [timings, setTimings] = useState<Timings>({});
   const [totalCost, setTotalCost] = useState<number>(0);
+  const [loadingStatus, setLoadingStatus] = useState<string>('Ready');
   
   const startTimeRef = useRef<number>(0);
+  const instantRaffleRef = useRef<Promise<unknown[]> | null>(null);
 
   // Raffle results
-  const [raffleSummary, setRaffleSummary] = useState<any>(null);
-  const [raffleResults, setRaffleResults] = useState<any[]>([]);
+  const [raffleSummary, setRaffleSummary] = useState<Record<string, unknown> | null>(null);
+  const [raffleResults, setRaffleResults] = useState<unknown[]>([]);
 
   const orchestrateMutation = useMutation({
-    mutationFn: orchestrateQuery,
+    mutationFn: (variables: { query: string; mode: SearchMode }) => orchestrateQuery(variables.query, variables.mode),
     onSuccess: async (data) => {
       const orchTime = performance.now();
       setTimings(prev => ({ ...prev, orchestrator: Math.round((orchTime - startTimeRef.current) / 100) / 10 }));
       
-      // Fetch Raffle suggestions concurrently to enrich the orchestrator's results
+      // Add orchestrator cost
+      setTotalCost(prev => prev + COST_MODEL.ORCHESTRATOR);
+
       let enrichedSuggestions = data.suggestions || [];
-      if (data.strategy !== 'STOP') {
+      if (data.strategy === 'STOP') {
         try {
-          const raffleSugg = await fetchSuggestions(query);
-          // Merge and deduplicate (limit to 6 total)
-          const allSuggestions = Array.from(new Set([...enrichedSuggestions, ...raffleSugg.map(s => s.suggestion)]));
-          enrichedSuggestions = allSuggestions.slice(0, 6);
+          const topQuestions = await fetchTopQuestions();
+          enrichedSuggestions = topQuestions.slice(0, 5).map(q => q.question);
         } catch (e) {
-          console.warn('[Raffle] Failed to fetch enriched suggestions:', e);
+          console.warn('[Raffle] Failed to fetch top questions:', e);
         }
       }
 
       setOrchestration({ ...data, suggestions: enrichedSuggestions });
       
-      // Calculate initial strategy cost
-      let cost = 0;
-      if (data.strategy === 'RAFFLE') cost = 0.05;
-      else if (data.strategy === 'DATABASE') cost = 0.01;
-      else if (data.strategy === 'DUAL') cost = 0.07; // Raffle + AI
-      setTotalCost(cost);
-
       if (data.strategy === 'STOP') {
         finishWorkflow();
         return;
       }
       setStep('executing');
-      executeStrategy(data.strategy, query);
+      setLoadingStatus('Correlating intelligent strategies...');
+
+      if (mode === 'HYBRID_OPTIMIZER') {
+        executeHybridStrategy(data.strategy, query);
+      } else {
+        executeStandardStrategy(data.strategy, query);
+      }
     },
     onError: () => {
       setStep('error');
@@ -78,139 +98,117 @@ export function useOrchestratedSearch() {
 
   const finishWorkflow = () => {
     const endTime = performance.now();
-    setDuration(Math.round((endTime - startTimeRef.current) / 100) / 10); // rounded to 1 decimal
+    setDuration(Math.round((endTime - startTimeRef.current) / 100) / 10);
+    setLoadingStatus('Completed');
     setStep('completed');
   };
 
-  const executeStrategy = async (strategy: SearchStrategy, searchQuery: string) => {
-    try {
-      const tasks: Promise<any>[] = [];
-      const execStart = performance.now();
+  const getRaffleTasks = (searchQuery: string, execStart: number) => {
+    setTotalCost(prev => prev + COST_MODEL.RAFFLE);
 
-      if (strategy === 'RAFFLE' || strategy === 'DUAL') {
-        // Fetch results and stream summary in parallel
-        const resultsPromise = fetchSearchResults(searchQuery).then(results => {
-          setRaffleResults(results);
-          return results;
-        });
-
-        const summaryPromise = streamRaffleSummary(searchQuery, (chunk) => {
-          setRaffleSummary((prev: any) => {
-            if (!prev) {
-              return {
-                status: "success",
-                summary: chunk,
-                references: [],
-              };
-            }
-            return {
-              ...prev,
-              summary: prev.summary + chunk,
-            };
-          });
-        }).then(finalSummary => {
-          const time = Math.round((performance.now() - execStart) / 100) / 10;
-          setTimings(prev => ({ ...prev, raffle: time }));
-          setRaffleSummary(finalSummary);
-          return finalSummary;
-        });
-
-        tasks.push(Promise.all([resultsPromise, summaryPromise]));
-      }
-
-      if (strategy === 'DUAL') {
-        const aiStart = performance.now();
-        tasks.push(
-          streamOpenAICompletion(
-            [
-              {
-                role: 'system',
-                content: `You are a Senior NBIM Institutional Analyst. Provide a high-density executive summary based on the user request, focusing exclusively on key structured findings from fund documentation. 
-                
-                TONAL GUIDELINES:
-                - Tone: Precise, authoritative, and extremely concise. 
-                - Format: Use bullet points for structured data or key highlights. 
-                - Constraint: Do not exceed 100 words. Avoid preamble and generalized context.
-                
-                STRICT CONSTRAINTS:
-                - Cite evidence using [1], [2], [3] for core claims.
-                - Prioritize specific policy mandates (e.g., "GPFG Management Mandate") and quantitative data.
-                - Focus on "Structured Highlights": extracting the most important takeaways from the search results.`,
-              },
-              { role: 'user', content: searchQuery },
-            ],
-            (chunk) => setOpenAIResult(prev => prev + chunk)
-          ).then(() => {
-            const time = Math.round((performance.now() - aiStart) / 100) / 10;
-            setTimings(prev => ({ ...prev, ai: time }));
-          })
-        );
-      } else if (strategy === 'DATABASE') {
-
-        const dbStart = performance.now();
-        // Mock Snowflake execution
-        const dbPromise = new Promise<{ data: any[] }>(resolve => setTimeout(() => {
-          // Robust extracted company for the mock
-          const knownCompanies = ['Apple', 'Microsoft', 'Nvidia', 'Meta', 'Alphabet', 'Amazon', 'Tesla'];
-          const extractedCompany = knownCompanies.find(c => searchQuery.toLowerCase().includes(c.toLowerCase())) || 'Nvidia';
-
-          const result = {
-            sql: `SELECT company_name, holding_value, fiscal_year, fund_percentage 
-FROM investments 
-WHERE company_name ILIKE '%${extractedCompany}%';`,
-            data: [
-              { company_name: `${extractedCompany} Inc.`, holding_value: "$23.4B", fiscal_year: 2024, fund_percentage: "0.85%" },
-              { company_name: `${extractedCompany} Global`, holding_value: "$19.1B", fiscal_year: 2024, fund_percentage: "0.72%" }
-            ],
-            sourceUrl: "https://www.nbim.no/en/the-fund/investments/#/",
-            tableId: `SNOWFLAKE_P_INVESTMENTS_2024`
-          };
-          const time = Math.round((performance.now() - dbStart) / 100) / 10;
-          setTimings(prev => ({ ...prev, database: time }));
-          setDbResult(result);
-          resolve(result);
-        }, 1500));
-
-        tasks.push(dbPromise.then(async (dbResults) => {
-          const aiStart = performance.now();
-          // Truncate data for the summarizer to prevent response truncation if the table is huge
-          const summarizedData = dbResults.data.slice(0, 10);
-
-          // Generate an AI summary for the database results
-          await streamOpenAICompletion(
-            [
-              {
-                role: 'system',
-                content: `You are a Senior NBIM Institutional Analyst. Provide a concise executive summary of the following structured investment data.
-                Focus on the core holdings, their market value, and fund ownership percentages. 
-                Be authoritative and data-driven. Keep it under 80 words.`,
-              },
-              { 
-                role: 'user', 
-                content: `Please summarize this data for the query "${searchQuery}": ${JSON.stringify(summarizedData)}` 
-              },
-            ],
-            (chunk) => setOpenAIResult(prev => prev + chunk)
-          );
-          const time = Math.round((performance.now() - aiStart) / 100) / 10;
-          setTimings(prev => ({ ...prev, ai: time }));
-        }));
-      }
-
-      await Promise.all(tasks);
-      finishWorkflow();
-    } catch (e) {
-      console.error('Execution failed:', e);
-      setStep('error');
+    let resultsPromise = instantRaffleRef.current;
+    if (!resultsPromise) {
+      resultsPromise = fetchSearchResults(searchQuery).then(results => {
+        setRaffleResults(results);
+        return results;
+      });
     }
+
+    const summaryPromise = streamRaffleSummary(searchQuery, (chunk) => {
+      setLoadingStatus('Synthesizing API knowledge...');
+      setRaffleSummary((prev: unknown) => {
+        const prevObj = prev as Record<string, unknown> | null;
+        if (!prevObj) return { status: "success", summary: chunk, references: [] };
+        return { ...prevObj, summary: (prevObj.summary as string) + chunk };
+      });
+    }).then(finalSummary => {
+      const time = Math.round((performance.now() - execStart) / 100) / 10;
+      setTimings(prev => ({ ...prev, raffle: time }));
+      setRaffleSummary(finalSummary);
+      return finalSummary;
+    });
+
+    return [resultsPromise, summaryPromise];
+  };
+
+  const getDatabaseTasks = (searchQuery: string, execStart: number) => {
+    setTotalCost(prev => prev + COST_MODEL.DATABASE);
+    
+    const dbPromise = fetchDatabaseResults(searchQuery).then(result => {
+      const time = Math.round((performance.now() - execStart) / 100) / 10;
+      setTimings(prev => ({ ...prev, database: time }));
+      setDbResult(result);
+      return result;
+    }).catch(err => {
+      console.error('[Snowflake] Query failed:', err);
+      // Fallback or error handling
+      setStep('error');
+      throw err;
+    });
+
+    return [dbPromise];
+  };
+
+  const executeStandardStrategy = async (strategy: SearchStrategy, searchQuery: string) => {
+    if (strategy === 'DUAL') {
+      return executeHybridStrategy('DUAL', searchQuery);
+    }
+
+    const tasks: Promise<unknown>[] = [];
+    const execStart = performance.now();
+
+    if (strategy === 'RAFFLE') {
+      tasks.push(...getRaffleTasks(searchQuery, execStart));
+    }
+
+    if (strategy === 'DATABASE') {
+      const [dbPromise] = getDatabaseTasks(searchQuery, execStart);
+      tasks.push(dbPromise.then(async (dbResults) => {
+        setTotalCost(prev => prev + COST_MODEL.AI_SYNTHESIS);
+        const aiStart = performance.now();
+        await streamOpenAICompletion([
+          { role: 'system', content: 'Summarize this structured data concisely (under 80 words).' },
+          { role: 'user', content: JSON.stringify(dbResults.data.slice(0, 10)) },
+        ], (chunk) => {
+          setLoadingStatus('Interpreting structured queries...');
+          setOpenAIResult(prev => prev + chunk);
+        });
+        setTimings(prev => ({ ...prev, ai: Math.round((performance.now() - aiStart) / 100) / 10 }));
+      }));
+    }
+
+    await Promise.all(tasks);
+    finishWorkflow();
+  };
+
+  const executeHybridStrategy = async (strategy: SearchStrategy, searchQuery: string) => {
+    // Hybrid Optimizer Mode ALWAYS performs both document and database searches
+    // unless the orchestrator definitively flagged it as STOP.
+    
+    // Fire both parallel regardless of the strategy's internal choice (RAFFLE/DATABASE)
+    // as the user wants full coverage in Hybrid mode.
+
+    const execStart = performance.now();
+    
+    // Fire both parallel
+    const raffleTasks = getRaffleTasks(searchQuery, execStart);
+    const [dbPromise] = getDatabaseTasks(searchQuery, execStart);
+
+    await Promise.all([
+      Promise.all(raffleTasks),
+      dbPromise
+    ]);
+
+    finishWorkflow();
   };
 
   const handleSearch = (searchQuery: string = query) => {
     const trimmed = searchQuery.trim();
-    if (!trimmed) return;
+    if (trimmed.length < 3) return;
 
     startTimeRef.current = performance.now();
     setStep('orchestrating');
+    setLoadingStatus('Initializing query routing...');
     setOrchestration(null);
     setOpenAIResult('');
     setDbResult(null);
@@ -218,8 +216,15 @@ WHERE company_name ILIKE '%${extractedCompany}%';`,
     setRaffleResults([]);
     setDuration(null);
     setTimings({});
+    setTotalCost(0);
     
-    orchestrateMutation.mutate(trimmed);
+    instantRaffleRef.current = fetchSearchResults(trimmed).then(results => {
+      setRaffleResults(results);
+      setLoadingStatus('Instant matches fetched...');
+      return results;
+    });
+
+    orchestrateMutation.mutate({ query: trimmed, mode });
   };
 
   const clearQuery = () => {
@@ -228,6 +233,7 @@ WHERE company_name ILIKE '%${extractedCompany}%';`,
     setOrchestration(null);
     setDuration(null);
     setTimings({});
+    setTotalCost(0);
   };
 
   const runSuggestion = (text: string) => {
@@ -238,6 +244,8 @@ WHERE company_name ILIKE '%${extractedCompany}%';`,
   return {
     query,
     setQuery,
+    mode,
+    setMode,
     step,
     orchestration,
     openAIResult,
@@ -247,6 +255,7 @@ WHERE company_name ILIKE '%${extractedCompany}%';`,
     duration,
     timings,
     totalCost,
+    loadingStatus,
     handleSearch,
     clearQuery,
     runSuggestion,

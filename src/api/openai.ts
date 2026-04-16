@@ -1,6 +1,9 @@
 const OPENAI_API_KEY = import.meta.env.VITE_OPEN_AI_API_KEY;
 
-export async function fetchOpenAICompletion(messages: Array<{ role: string; content: string }>) {
+export async function fetchOpenAICompletion(
+  messages: Array<{ role: string; content: string }>,
+  options: Record<string, unknown> = {}
+) {
   if (!OPENAI_API_KEY) {
     throw new Error("VITE_OPEN_AI_API_KEY is not set.");
   }
@@ -15,6 +18,7 @@ export async function fetchOpenAICompletion(messages: Array<{ role: string; cont
       model: "gpt-5.4-nano",
       messages,
       temperature: 0.7,
+      ...options,
     }),
   });
 

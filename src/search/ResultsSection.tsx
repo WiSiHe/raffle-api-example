@@ -2,6 +2,15 @@ import type { SearchResult } from '../types';
 import { sendFeedback } from '../api/api';
 import { errorMessage } from './searchUtils';
 
+function truncateByWords(html: string, maxWords: number) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  const text = div.innerText || div.textContent || '';
+  const words = text.split(/\s+/);
+  if (words.length <= maxWords) return html;
+  return words.slice(0, maxWords).join(' ') + '...';
+}
+
 export function ResultsSection({
   isSearchError,
   searchError,
@@ -49,7 +58,7 @@ export function ResultsSection({
             </span>
             <div
               className="mt-2 text-sm leading-relaxed text-muted-foreground [&>a]:pointer-events-none [&>a]:text-nbim-sea"
-              dangerouslySetInnerHTML={{ __html: result.content }}
+              dangerouslySetInnerHTML={{ __html: truncateByWords(result.content, 60) }}
             />
           </a>
         ))}
