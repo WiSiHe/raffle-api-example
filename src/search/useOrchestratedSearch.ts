@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { orchestrateQuery, OrchestrationResult, SearchStrategy, SearchMode, ORCHESTRATOR_SYSTEM_PROMPT, simulateDatabaseTask } from '../api/orchestrator';
 import { fetchSearchResults, streamRaffleSummary, fetchTopQuestions } from '../api/api';
 import { streamOpenAICompletion } from '../api/openai';
+import { SearchResult, SummaryResponse } from '../types';
 
 export type OrchestrationStep = 'idle' | 'orchestrating' | 'executing' | 'completed' | 'error';
 
@@ -51,14 +52,14 @@ export function useOrchestratedSearch(initialMode: SearchMode = 'SMART_ROUTING')
   const [loadingStatus, setLoadingStatus] = useState<string>('Ready');
   
   const startTimeRef = useRef<number>(0);
-  const instantRaffleRef = useRef<Promise<unknown[]> | null>(null);
+  const instantRaffleRef = useRef<Promise<SearchResult[]> | null>(null);
 
   // Raffle results
-  const [raffleSummary, setRaffleSummary] = useState<Record<string, unknown> | null>(null);
-  const [raffleResults, setRaffleResults] = useState<unknown[]>([]);
+  const [raffleSummary, setRaffleSummary] = useState<SummaryResponse | null>(null);
+  const [raffleResults, setRaffleResults] = useState<SearchResult[]>([]);
 
   const orchestrateMutation = useMutation({
-    mutationFn: (variables: { query: string; mode: SearchMode }) => orchestrateQuery(variables.query, variables.mode),
+    mutationFn: (variables: { query: string; mode: SearchMode }) => orchestrateQuery(variables.query),
     onSuccess: async (data) => {
       const orchTime = performance.now();
       setTimings(prev => ({ ...prev, orchestrator: Math.round((orchTime - startTimeRef.current) / 100) / 10 }));
@@ -116,10 +117,9 @@ export function useOrchestratedSearch(initialMode: SearchMode = 'SMART_ROUTING')
 
     const summaryPromise = streamRaffleSummary(searchQuery, (chunk) => {
       setLoadingStatus('Synthesizing API knowledge...');
-      setRaffleSummary((prev: unknown) => {
-        const prevObj = prev as Record<string, unknown> | null;
-        if (!prevObj) return { status: "success", summary: chunk, references: [] };
-        return { ...prevObj, summary: (prevObj.summary as string) + chunk };
+      setRaffleSummary((prev) => {
+        if (!prev) return { status: "success", summary: chunk, references: [] };
+        return { ...prev, summary: prev.summary + chunk };
       });
     }).then(finalSummary => {
       const time = Math.round((performance.now() - execStart) / 100) / 10;
@@ -181,7 +181,7 @@ export function useOrchestratedSearch(initialMode: SearchMode = 'SMART_ROUTING')
     finishWorkflow();
   };
 
-  const executeHybridStrategy = async (strategy: SearchStrategy, searchQuery: string) => {
+  const executeHybridStrategy = async (_strategy: SearchStrategy, searchQuery: string) => {
     // Hybrid Optimizer Mode ALWAYS performs both document and database searches
     // unless the orchestrator definitively flagged it as STOP.
     

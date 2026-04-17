@@ -94,7 +94,12 @@ export function useSearchPage() {
             return {
               status: "success",
               summary: chunk,
-              references: searchResults.slice(0, 3).map(r => ({ title: r.title, url: r.url })),
+              references: searchResults.slice(0, 3).map((r, i) => ({ 
+                index: i + 1, 
+                title: r.title, 
+                url: r.url, 
+                content: r.content 
+              })),
             };
           }
           return {

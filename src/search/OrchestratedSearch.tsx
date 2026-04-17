@@ -253,7 +253,7 @@ export function OrchestratedSearch({
             onSubmitSearch={() => handleSearch()}
             onClear={clearQuery}
             mode={mode}
-            onModeChange={setMode}
+            onModeChange={(m) => setMode(m as SearchMode)}
             showModeSwitcher={showModeSwitcher}
           />
           
@@ -340,12 +340,12 @@ export function OrchestratedSearch({
                             <tbody className="divide-y divide-nbim-border-subdued">
                               {dbResult.data.map((row, i) => (
                                 <tr key={i} className="hover:bg-nbim-sea/[0.02] transition-colors">
-                                  <td className="px-6 py-4 text-sm font-semibold text-nbim-midnight">{row.company_name}</td>
-                                  <td className="px-6 py-4 text-sm font-medium text-muted-foreground font-mono">{row.holding_value}</td>
-                                  <td className="px-6 py-4 text-sm text-muted-foreground text-center">{row.fiscal_year}</td>
+                                  <td className="px-6 py-4 text-sm font-semibold text-nbim-midnight">{row.company_name as string}</td>
+                                  <td className="px-6 py-4 text-sm font-medium text-muted-foreground font-mono">{row.holding_value as string}</td>
+                                  <td className="px-6 py-4 text-sm text-muted-foreground text-center">{row.fiscal_year as number}</td>
                                   <td className="px-6 py-4 text-right">
                                     <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-nbim-sea/5 text-nbim-sea font-mono text-xs font-bold ring-1 ring-inset ring-nbim-sea/10">
-                                      {row.fund_percentage}
+                                      {row.fund_percentage as string}
                                     </span>
                                   </td>
                                 </tr>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { OrchestratedSearch } from '../OrchestratedSearch';
 import { Sparkles, BarChart3, ShieldAlert, Ban, HelpCircle } from 'lucide-react';
 
