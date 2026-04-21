@@ -5,39 +5,7 @@ import { ResultsSection } from './ResultsSection';
 import { useOrchestratedSearch } from './useOrchestratedSearch';
 import { cn } from '../lib/utils';
 
-function formatText(text: string) {
-  if (!text) return { __html: '' };
-  
-  const formatted = text
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-nbim-midnight">$1</strong>')
-    .replace(/\[(\d+)\]/g, '<sup class="text-emerald-500 font-bold ml-0.5">[$1]</sup>');
-    
-  const lines = formatted.split('\n');
-  let inList = false;
-  let html = '';
-  
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      if (!inList) {
-        html += '<ul class="my-4 space-y-3 ml-5">';
-        inList = true;
-      }
-      html += `<li class="list-disc marker:text-emerald-400 pl-1">${trimmed.slice(2)}</li>`;
-    } else {
-      if (inList) {
-        html += '</ul>';
-        inList = false;
-      }
-      if (trimmed) {
-        html += `<p class="mb-4">${trimmed}</p>`;
-      }
-    }
-  }
-  if (inList) html += '</ul>';
-  
-  return { __html: html };
-}
+import { formatSummaryText } from './searchUtils';
 
 
 function RaffleSkeleton() {
@@ -381,7 +349,7 @@ export function OrchestratedSearch({
                           <div className={cn("prose prose-sm max-w-none text-nbim-midnight relative transition-all duration-500", !isSummaryExpanded && "max-h-32 overflow-hidden")}>
                             <div 
                               className="text-lg leading-[1.8] font-serif tracking-tight"
-                              dangerouslySetInnerHTML={formatText((raffleSummary?.summary || openAIResult) + (isExecuting && !openAIResult && !raffleSummary?.summary ? ' ✦' : ''))}
+                              dangerouslySetInnerHTML={formatSummaryText((raffleSummary?.summary || openAIResult) + (isExecuting && !openAIResult && !raffleSummary?.summary ? ' ✦' : ''))}
                             />
                             {!isSummaryExpanded && (
                               <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-nbim-page to-transparent pointer-events-none" />
