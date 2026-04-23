@@ -5,7 +5,7 @@ import { ResultsSection } from './ResultsSection';
 import { useOrchestratedSearch } from './useOrchestratedSearch';
 import { cn } from '../lib/utils';
 
-import { formatSummaryText } from './searchUtils';
+import { formatSummaryText, resolveCitedReferences } from './searchUtils';
 
 
 function RaffleSkeleton() {
@@ -98,6 +98,9 @@ export function OrchestratedSearch({
   } = useOrchestratedSearch(initialMode);
 
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+
+  const citedReferences = resolveCitedReferences(raffleSummary || undefined, raffleResults);
+
 
   const isIdle = step === 'idle';
   const isOrchestrating = step === 'orchestrating';
@@ -349,19 +352,47 @@ export function OrchestratedSearch({
                           <div className={cn("prose prose-sm max-w-none text-nbim-midnight relative transition-all duration-500", !isSummaryExpanded && "max-h-32 overflow-hidden")}>
                             <div 
                               className="text-lg leading-[1.8] font-serif tracking-tight"
-                              dangerouslySetInnerHTML={formatSummaryText((raffleSummary?.summary || openAIResult) + (isExecuting && !openAIResult && !raffleSummary?.summary ? ' ✦' : ''))}
+                              dangerouslySetInnerHTML={formatSummaryText((raffleSummary?.summary || openAIResult) + (isExecuting && !openAIResult && !raffleSummary?.summary ? ' ✦' : ''), citedReferences)}
                             />
                             {!isSummaryExpanded && (
                               <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-nbim-page to-transparent pointer-events-none" />
                             )}
                           </div>
                           
-                          <button 
-                            onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
-                            className="text-[10px] uppercase tracking-widest font-bold text-nbim-sea hover:text-nbim-midnight transition-colors block pt-2"
-                          >
-                            {isSummaryExpanded ? "Show Less" : "Read More"}
-                          </button>
+                          <div className="flex items-center justify-between pt-2">
+                            <button 
+                              onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+                              className="text-[10px] uppercase tracking-widest font-bold text-nbim-sea hover:text-nbim-midnight transition-colors"
+                            >
+                              {isSummaryExpanded ? "Show Less" : "Read More"}
+                            </button>
+                          </div>
+
+                          {citedReferences.length > 0 && isCompleted && (
+                            <div className="pt-6 mt-4 border-t border-nbim-border-subdued/50 space-y-3">
+                              <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                Source Citations
+                              </h3>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                                {citedReferences.map((ref, index) => (
+                                  <a
+                                    key={`${ref.url}-${index}`}
+                                    href={ref.url}
+                                    className="group flex items-start gap-2 text-xs text-muted-foreground hover:text-nbim-sea transition-colors"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded bg-nbim-sea/5 text-[9px] font-bold text-nbim-sea transition-colors group-hover:bg-nbim-sea group-hover:text-white">
+                                      {index + 1}
+                                    </span>
+                                    <span className="line-clamp-1 leading-tight group-hover:underline underline-offset-2">
+                                      {ref.title}
+                                    </span>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : isExecuting ? (
                         <div className="py-2">

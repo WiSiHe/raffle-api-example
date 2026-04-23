@@ -34,8 +34,12 @@ export type SearchResult = {
   url: string;
   preview_url: string;
   feedback_data: string;
-  metadata: Record<string, unknown>;
-  configuration: Record<string, unknown>;
+  metadata: Array<{
+    name?: string;
+    property?: string;
+    content: string;
+  }>;
+  configuration: Record<string, unknown> | null;
 };
 
 export type SearchResultsResponse = {

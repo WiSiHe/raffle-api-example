@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { SummaryResponse } from '../types';
-import { errorMessage, formatSummaryText } from './searchUtils';
+import type { Reference, SearchResult } from '../types';
+import { errorMessage, formatSummaryText, resolveCitedReferences } from './searchUtils';
 import { cn } from '../lib/utils';
 import { ChevronRight } from 'lucide-react';
 
@@ -10,14 +10,17 @@ export function SummarySection({
   summaryError,
   hasSubmittedSearch,
   summary,
+  results,
 }: Readonly<{
   isLoadingSummary: boolean;
   isSummaryError: boolean;
   summaryError: unknown;
   hasSubmittedSearch: boolean;
   summary: SummaryResponse | undefined;
+  results?: SearchResult[];
 }>) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const citedReferences = resolveCitedReferences(summary, results);
 
   if (isSummaryError) {
     return (
@@ -55,9 +58,9 @@ export function SummarySection({
             "max-w-none transition-all duration-500 overflow-hidden",
             !isExpanded && "max-h-32"
           )}>
-            <div
+             <div
               className="text-lg leading-[1.8] font-serif font-normal text-foreground/90"
-              dangerouslySetInnerHTML={formatSummaryText(summary.summary + (!isSuccess ? ' ✦' : ''))}
+              dangerouslySetInnerHTML={formatSummaryText(summary.summary + (!isSuccess ? ' ✦' : ''), citedReferences)}
             />
           </div>
           
@@ -76,13 +79,13 @@ export function SummarySection({
           </button>
         </div>
 
-        {isSuccess && summary.references && summary.references.length > 0 && (
+        {isSuccess && citedReferences.length > 0 && (
           <div className="pt-6 border-t border-nbim-border-subdued space-y-4">
             <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Source Citations
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-              {summary.references.map((ref, index) => (
+              {citedReferences.map((ref, index) => (
                 <a
                   key={`${ref.url}-${index}`}
                   href={ref.url}

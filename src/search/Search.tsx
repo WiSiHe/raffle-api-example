@@ -85,6 +85,7 @@ export function Search() {
                   summaryError={summaryError}
                   hasSubmittedSearch={hasSubmittedSearch}
                   summary={summary ?? undefined}
+                  results={results}
                 />
               </div>
             </section>

@@ -4,9 +4,9 @@ import { useDebounce } from '@uidotdev/usehooks';
 import {
   fetchSearchResults,
   fetchSuggestions,
+  fetchSummary,
   fetchTopQuestions,
 } from '../api/api';
-import { streamOpenAICompletion } from '../api/openai';
 import { SummaryResponse } from '../types';
 
 export function useSearchPage() {
@@ -70,46 +70,16 @@ export function useSearchPage() {
     setHasSubmittedSearch(true);
     
     try {
-      // 1. Fetch search results first (Required for synthesis)
-      const searchResults = await handleFetchResults(trimmedQuery);
+      // 1. Fetch search results first (Required for synthesis/results list)
+      await handleFetchResults(trimmedQuery);
       
-      // 2. Prepare context for OpenAI
-      const context = searchResults.map((r, i) => `[${i+1}] ${r.title}: ${r.content}`).join('\n\n');
-      
-      const messages = [
-        { 
-          role: "system", 
-          content: "You are an institutional investment analyst at NBIM. Synthesize a concise, objective summary based ONLY on the provided documentation snippets. Use [n] for citations where n is the result index. Focus on fund policies, holdings, and management mandates. If the information is not in the snippets, say you don't have enough documentation on that topic."
-        },
-        { 
-          role: "user", 
-          content: `Question: ${trimmedQuery}\n\nDocumentation:\n${context}`
-        }
-      ];
-
-      // 3. Stream OpenAI completion
-      await streamOpenAICompletion(messages, (chunk) => {
-        setSummary((prev) => {
-          if (!prev) {
-            return {
-              status: "success",
-              summary: chunk,
-              references: searchResults.slice(0, 3).map((r, i) => ({ 
-                index: i + 1, 
-                title: r.title, 
-                url: r.url, 
-                content: r.content 
-              })),
-            };
-          }
-          return {
-            ...prev,
-            summary: prev.summary + chunk,
-          };
-        });
-      });
+      // 2. Fetch Raffle Summary (Non-streaming for reliability)
+      const raffleSummary = await fetchSummary(trimmedQuery);
+      setSummary(raffleSummary);
       
       setIsLoadingSummary(false);
+
+
       
       const endTime = performance.now();
       setDuration(Math.round((endTime - startTimeRef.current) / 100) / 10);
