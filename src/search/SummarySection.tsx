@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Reference, SearchResult } from '../types';
+import type { SearchResult, SummaryResponse } from '../types';
 import { errorMessage, formatSummaryText, resolveCitedReferences } from './searchUtils';
 import { cn } from '../lib/utils';
 import { ChevronRight } from 'lucide-react';

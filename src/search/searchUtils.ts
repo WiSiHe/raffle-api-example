@@ -16,7 +16,7 @@ export function formatSummaryText(text: string, references?: Reference[]) {
   // 1. Handle bolding and bracketed citations
   const formatted = text
     .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-nbim-midnight">$1</strong>')
-    .replace(/\[(\d+)\]/g, (match, num) => {
+    .replace(/\[(\d+)\]/g, (_, num) => {
       const originalIndex = parseInt(num, 10);
       const displayIndex = indexMap?.get(originalIndex) ?? originalIndex;
       return `<sup class="text-nbim-sea font-bold ml-0.5" title="Source ${displayIndex}">[${displayIndex}]</sup>`;
